@@ -17,7 +17,7 @@ BlockingQueue<T>::~BlockingQueue()
 template<class T>
 bool BlockingQueue<T>::preleva(T& res) {
 	//innanzittutto prendo lock che gestisce l'accesso alla strutttura dati della coda
-	std::unique_lock lockQueue(mutexQueue);
+	std::unique_lock<std::mutex> lockQueue(mutexQueue);
 
 	if (queueState == CHIUSA)
 		//caso in cui la coda e' stata chiusa per cui non e' possibile prelevare
@@ -47,7 +47,8 @@ bool BlockingQueue<T>::preleva(T& res) {
 
 	//se sono qui significa che la coda non e' vuota ed e' aperta
 	//per cui estraggo il primo elemento disponibile e ritorno true
-	res = coda.pop_front();
+	res = coda.front();
+	coda.pop_front();
 	counter--;
 	if (counter == size - 1)
 		//se il conteggio era pari a size significa che probabilmente c'erano dei produttori in coda per cui adesso ne libero uno
@@ -67,16 +68,16 @@ class myexception : public std::exception
 template<class T>
 void BlockingQueue<T>::inserisci(T val) {
 	//funzionamento analogo a preleva
-	std::unique_lock lockQueue(mutexQueue);
+	std::unique_lock<std::mutex> lockQueue(mutexQueue);
 
-	if (stato == CHIUSA)
+	if (queueState == CHIUSA)
 		throw myex;
 
 	while (counter == size) {
 		lockQueue.unlock();
 		std::unique_lock<std::mutex> ul(threadMutexFull);
 		cvSynchronizerFull.wait(ul);
-		if (stato == CHIUSA)
+		if (queueState == CHIUSA)
 			throw myex;
 	}
 
@@ -101,9 +102,3 @@ void BlockingQueue<T>::chiudi() {
 	cvSynchronizerEmpty.notify_all();
 	cvSynchronizerFull.notify_all();
 };
-
-//main di prova
-#include <iostream>
-int main() {
-	std::cout << "Hello world!\n";
-}
